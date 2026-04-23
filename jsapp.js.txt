@@ -1,0 +1,125 @@
+// Import modules
+import { fetchWeatherData, fetchForecastData } from './api.js';
+import { saveUserPreferences, loadUserPreferences } from './storage.js';
+
+// DOM Elements
+const cityInput = document.getElementById('cityInput');
+const searchBtn = document.getElementById('searchBtn');
+
+const loading = document.getElementById('loading');
+const errorDiv = document.getElementById('error');
+
+const currentWeather = document.getElementById('currentWeather');
+const forecastSection = document.getElementById('forecast');
+
+const cityName = document.getElementById('cityName');
+const temperature = document.getElementById('temperature');
+const description = document.getElementById('description');
+const humidity = document.getElementById('humidity');
+const windSpeed = document.getElementById('windSpeed');
+const weatherIcon = document.getElementById('weatherIcon');
+
+const forecastContainer = document.getElementById('forecastContainer');
+
+// Load preferences
+const prefs = loadUserPreferences();
+
+// Initialize App
+window.addEventListener('DOMContentLoaded', () => {
+  const defaultCity = prefs.defaultCity || 'London';
+  cityInput.value = defaultCity;
+  getWeather(defaultCity);
+});
+
+// Event Listeners
+searchBtn.addEventListener('click', () => {
+  const city = cityInput.value.trim();
+  if (city) {
+    getWeather(city);
+  }
+});
+
+// Enter key support
+cityInput.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') {
+    searchBtn.click();
+  }
+});
+
+// Main function
+async function getWeather(city) {
+  showLoading();
+  hideError();
+
+  try {
+    // Fetch current + forecast
+    const weather = await fetchWeatherData(city);
+    const forecast = await fetchForecastData(city);
+
+    // Update UI
+    displayCurrentWeather(city, weather);
+    displayForecast(forecast);
+
+    // Save preference
+    saveUserPreferences({ defaultCity: city });
+
+    showWeather();
+  } catch (error) {
+    showError(error.message || 'Failed to fetch weather data');
+  } finally {
+    hideLoading();
+  }
+}
+
+// Display current weather
+function displayCurrentWeather(city, data) {
+  cityName.textContent = city;
+  temperature.textContent = data.temperature;
+  description.textContent = data.description;
+  humidity.textContent = data.humidity;
+  windSpeed.textContent = data.windSpeed;
+
+  weatherIcon.src = `https://openweathermap.org/img/wn/${data.icon}@2x.png`;
+}
+
+// Display forecast
+function displayForecast(forecastData) {
+  forecastContainer.innerHTML = '';
+
+  forecastData.forEach(day => {
+    const card = document.createElement('div');
+    card.classList.add('forecast-card');
+
+    card.innerHTML = `
+      <h4>${day.date}</h4>
+      <img src="https://openweathermap.org/img/wn/${day.icon}.png" />
+      <p>${day.temp}°C</p>
+      <p>${day.description}</p>
+    `;
+
+    forecastContainer.appendChild(card);
+  });
+}
+
+// UI States
+function showLoading() {
+  loading.classList.remove('hidden');
+}
+
+function hideLoading() {
+  loading.classList.add('hidden');
+}
+
+function showError(message) {
+  errorDiv.textContent = message;
+  errorDiv.classList.remove('hidden');
+}
+
+function hideError() {
+  errorDiv.classList.add('hidden');
+}
+
+function showWeather() {
+  currentWeather.classList.remove('hidden');
+  forecastSection.classList.remove('hidden');
+}

@@ -1,0 +1,210 @@
+/**
+ * Storage Module - Handles Local Storage operations
+ * Used for Weather Dashboard Application
+ */
+
+// Storage Keys (centralized for maintainability)
+const STORAGE_KEYS = {
+  USER_PREFERENCES: 'weatherPreferences',
+  FAVORITE_CITIES: 'favoriteCities',
+  LAST_SEARCH: 'lastSearch',
+  CACHE_WEATHER: 'cachedWeatherData'
+};
+
+/**
+ * Save data to Local Storage safely
+ */
+function saveToStorage(key, data) {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+    return true;
+  } catch (error) {
+    console.error(`Error saving to localStorage (${key}):`, error);
+    return false;
+  }
+}
+
+/**
+ * Load data from Local Storage safely
+ */
+function loadFromStorage(key, defaultValue = null) {
+  try {
+    const data = localStorage.getItem(key);
+    return data ? JSON.parse(data) : defaultValue;
+  } catch (error) {
+    console.error(`Error loading from localStorage (${key}):`, error);
+    return defaultValue;
+  }
+}
+
+/**
+ * Remove item from Local Storage
+ */
+function removeFromStorage(key) {
+  try {
+    localStorage.removeItem(key);
+    return true;
+  } catch (error) {
+    console.error(`Error removing from localStorage (${key}):`, error);
+    return false;
+  }
+}
+
+/* =========================
+   USER PREFERENCES
+========================= */
+
+/**
+ * Save user preferences (city, units, theme)
+ */
+function saveUserPreferences(preferences) {
+  const defaultPrefs = {
+    defaultCity: 'London',
+    units: 'metric',
+    theme: 'light'
+  };
+
+  const updatedPrefs = {
+    ...defaultPrefs,
+    ...preferences
+  };
+
+  return saveToStorage(STORAGE_KEYS.USER_PREFERENCES, updatedPrefs);
+}
+
+/**
+ * Load user preferences
+ */
+function loadUserPreferences() {
+  return loadFromStorage(STORAGE_KEYS.USER_PREFERENCES, {
+    defaultCity: 'London',
+    units: 'metric',
+    theme: 'light'
+  });
+}
+
+/* =========================
+   FAVORITE CITIES
+========================= */
+
+/**
+ * Add city to favorites
+ */
+function addFavoriteCity(city) {
+  const favorites = loadFavoriteCities();
+
+  if (!favorites.includes(city)) {
+    favorites.push(city);
+    saveToStorage(STORAGE_KEYS.FAVORITE_CITIES, favorites);
+  }
+
+  return favorites;
+}
+
+/**
+ * Remove city from favorites
+ */
+function removeFavoriteCity(city) {
+  const favorites = loadFavoriteCities();
+  const updated = favorites.filter(c => c !== city);
+
+  saveToStorage(STORAGE_KEYS.FAVORITE_CITIES, updated);
+  return updated;
+}
+
+/**
+ * Get all favorite cities
+ */
+function loadFavoriteCities() {
+  return loadFromStorage(STORAGE_KEYS.FAVORITE_CITIES, []);
+}
+
+/* =========================
+   SEARCH HISTORY
+========================= */
+
+/**
+ * Save last searched city
+ */
+function saveLastSearch(city) {
+  return saveToStorage(STORAGE_KEYS.LAST_SEARCH, {
+    city,
+    timestamp: new Date().toISOString()
+  });
+}
+
+/**
+ * Get last searched city
+ */
+function getLastSearch() {
+  return loadFromStorage(STORAGE_KEYS.LAST_SEARCH, null);
+}
+
+/* =========================
+   WEATHER CACHE (Performance Optimization)
+========================= */
+
+/**
+ * Cache weather data for faster loading
+ */
+function cacheWeatherData(city, data) {
+  const cache = loadFromStorage(STORAGE_KEYS.CACHE_WEATHER, {});
+
+  cache[city.toLowerCase()] = {
+    data,
+    timestamp: Date.now()
+  };
+
+  return saveToStorage(STORAGE_KEYS.CACHE_WEATHER, cache);
+}
+
+/**
+ * Get cached weather data if not expired (10 min cache)
+ */
+function getCachedWeather(city, maxAgeMinutes = 10) {
+  const cache = loadFromStorage(STORAGE_KEYS.CACHE_WEATHER, {});
+  const entry = cache[city.toLowerCase()];
+
+  if (!entry) return null;
+
+  const age = (Date.now() - entry.timestamp) / (1000 * 60);
+
+  if (age > maxAgeMinutes) {
+    // Expired cache
+    delete cache[city.toLowerCase()];
+    saveToStorage(STORAGE_KEYS.CACHE_WEATHER, cache);
+    return null;
+  }
+
+  return entry.data;
+}
+
+/* =========================
+   CLEAR STORAGE
+========================= */
+
+/**
+ * Clear all app-related storage
+ */
+function clearAllWeatherData() {
+  Object.values(STORAGE_KEYS).forEach(key => {
+    removeFromStorage(key);
+  });
+}
+
+/* =========================
+   EXPORTS (for modular usage)
+========================= */
+
+export {
+  saveUserPreferences,
+  loadUserPreferences,
+  addFavoriteCity,
+  removeFavoriteCity,
+  loadFavoriteCities,
+  saveLastSearch,
+  getLastSearch,
+  cacheWeatherData,
+  getCachedWeather,
+  clearAllWeatherData
+};
